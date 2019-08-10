@@ -11,7 +11,7 @@ import re
 import os
 from enum import Enum, auto
 import traceback
-
+import requests
 import uuid
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
@@ -22,21 +22,16 @@ import json
 from functools import reduce
 
 import urllib.parse
-
+from lib.config import s3_client, s3_bucket_name
 
 app = Flask(__name__)
 cors = CORS(app)
 mutex = threading.Lock()
 
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "data-source-versioned")
-S3_REGION = os.getenv("S3_REGION", "us-east-1")
-S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "")
-S3_SECRET_KEY = os.getenv("aws_secret_access_key", "")
 
 ROOT_DIR = pathlib.Path.cwd() / "tree"
 pathlib.Path(ROOT_DIR).mkdir(parents=True, exist_ok=True)
 WAL = pathlib.Path.cwd() / "wal"
-
 
 class WAL_OP:
     MKDIR = "mkdir"
@@ -102,6 +97,17 @@ def __get_last_non_empty(string):
     return reduce(lambda a, b: b if b else a, string.split("/"), None)
 
 
+def __get_owner_id(req_json):
+    try:
+        response = requests.post('http://127.0.0.1:6000/api/get_session', data = { 'session': req_json['session'] })
+    except Exception as e:
+        print(e)
+        return None
+    if 'gid' in response:
+        return response['gid']
+    else:
+        return None    
+
 @app.route("/", methods=["GET"])
 def index():
     return "Hello, World!"
@@ -109,13 +115,15 @@ def index():
 
 @app.route("/api/ls", methods=["POST"])
 def ls():
-    global mutex
     req_json = request.json
 
     # users cannot access outside of the ROOT_DIR via ../../..
     if __level(req_json["path"]) < 0:
         return "invalid value path", 401
 
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["path"])):
+        return "invalid value path", 401
+    
     path = req_json["path"]
     recursive = request.args.get("recursive") is not None
 
@@ -163,7 +171,6 @@ def write_wal(obj):
 
 @app.route("/api/mkdir", methods=["POST"])
 def mkdir():
-    global mutex
     req_json = request.json
 
     if "path" not in req_json or "dir_name" not in req_json:
@@ -178,6 +185,9 @@ def mkdir():
     if req_json["dir_name"] == ".." or req_json["dir_name"] == ".":
         return "invalid value dir_name", 400
 
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["path"])):
+        return "invalid value path", 401
+    
     with mutex:
         req_json["dir_id"] = uuid.uuid4().hex
         req_json["timestamp"] = int(time.time())
@@ -235,7 +245,6 @@ the dst must exists, there's no auto_mkdir behavior
 
 @app.route("/api/mv", methods=["POST"])
 def mv():
-    global mutex
     req_json = request.json
 
     if "src" not in req_json or "dst" not in req_json:
@@ -249,8 +258,13 @@ def mv():
     if __level(req_json["dst"]) < 0:
         return "invalid value dst", 401
     # dst should be outside of the src
-    if __is_a_in_or_eq_b(ROOT_DIR / req_json["src"], ROOT_DIR / req_json["dst"]):
+    if __is_a_in_or_eq_b(__join_str(ROOT_DIR, req_json['src']), __join_str(ROOT_DIR, req_json["dst"])):
         return "dst should be outside of src", 400
+
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["src"])):
+        return "invalid value src", 401
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["dst"])):
+        return "invalid value dst", 401
 
     with mutex:
 
@@ -283,7 +297,6 @@ def __mv(record):
 
 @app.route("/api/rename", methods=["POST"])
 def rename():
-    global mutex
     req_json = request.json
 
     if "path" not in req_json or "filename" not in req_json:
@@ -296,6 +309,9 @@ def rename():
 
     if re.search("^[^/]+$", req_json["filename"]) is None:
         return "invalid value filename", 400
+
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["path"])):
+        return "invalid value path", 401
 
     with mutex:
         target = __join_str(ROOT_DIR, req_json["path"])
@@ -346,7 +362,6 @@ def __rename(record):
 
 @app.route("/api/rm", methods=["POST"])
 def rm():
-    global mutex
     req_json = request.json
 
     if "path" not in req_json:
@@ -355,6 +370,9 @@ def rm():
     # users cannot access outside of the ROOT_DIR via ../../..,
     # and cannot rm ROOT_DIR
     if __level(req_json["path"]) <= 0:
+        return "invalid value path", 401
+
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["path"])):
         return "invalid value path", 401
 
     with mutex:
@@ -381,7 +399,6 @@ def __rm(record):
 
 @app.route("/api/create", methods=["POST"])
 def create():
-    global mutex
     req_json = request.json
 
     if "dir" not in req_json or "filename" not in req_json:
@@ -393,11 +410,14 @@ def create():
     if re.search("^[^/]+$", req_json["filename"]) is None:
         return "invalid value filename", 400
 
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["dir"])):
+        return "invalid value path", 401
+
     req_json["file_id"] = uuid.uuid4().hex
     req_json["timestamp"] = int(time.time())
 
-    user_id = "default_user"
-    object_key = user_id + "/" + uuid.uuid4().hex
+    owner_id = "default_user"
+    object_key = owner_id + "/" + uuid.uuid4().hex
     req_json["object_key"] = object_key
     presigned = create_presigned_post(object_key)
     """
@@ -513,7 +533,6 @@ def __get_valid_obj_key_set(list_of_json):
 
 @app.route("/api/create_finish", methods=["POST"])
 def create_finish():
-    global mutex
     req_json = request.json
 
     if "full_file_id" not in req_json or "signature" not in req_json:
@@ -571,7 +590,6 @@ def __create_finish(record):
 
 @app.route("/api/get_obj", methods=["POST"])
 def get_obj():
-    global mutex
     req_json = request.json
 
     if "path" not in req_json or "obj_id" not in req_json:
@@ -580,6 +598,9 @@ def get_obj():
     obj_id = req_json["obj_id"]
 
     if __level(path) <= 0:
+        return "invalid value path", 401
+
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["path"])):
         return "invalid value path", 401
 
     with mutex:
@@ -598,7 +619,6 @@ def get_obj():
 
 @app.route("/api/update", methods=["POST"])
 def update():
-    global mutex
     req_json = request.json
 
     if "full_file_id" not in req_json:
@@ -608,8 +628,11 @@ def update():
     if __level(full_file_id) <= 0:
         return "invalid value full_file_id", 401
 
-    user_id = "default_user"
-    object_key = user_id + "/" + uuid.uuid4().hex
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["src"])):
+        return "invalid value path", 401
+
+    owner_id = "default_user"
+    object_key = owner_id + "/" + uuid.uuid4().hex
     req_json["object_key"] = object_key
     presigned = create_presigned_post(object_key)
     req_json["signature"] = presigned["fields"]["signature"]
@@ -663,7 +686,6 @@ def __update(record):
 
 @app.route("/api/update_finish", methods=["POST"])
 def update_finish():
-    global mutex
     req_json = request.json
 
     if "full_file_id" not in req_json or "signature" not in req_json:
@@ -753,10 +775,9 @@ def create_presigned_post(object_name):
     conditions = [{"key": object_name}, {"acl": "bucket-owner-full-control"}]
 
     # Generate a presigned S3 POST URL
-    s3_client = boto3.client("s3")
     try:
         response = s3_client.generate_presigned_post(
-            S3_BUCKET_NAME,
+            s3_bucket_name,
             object_name,
             Fields=fields,
             Conditions=conditions,
@@ -778,12 +799,11 @@ def create_presigned_url(object_name, content_disposition):
     """
 
     # Generate a presigned URL for the S3 object
-    s3_client = boto3.client("s3")
     try:
         response = s3_client.generate_presigned_url(
             "get_object",
             Params={
-                "Bucket": S3_BUCKET_NAME,
+                "Bucket": s3_bucket_name,
                 "Key": object_name,
                 "ResponseContentDisposition": "attachment;filename=__.pdf; filename*=UTF-8''%s"
                 % urllib.parse.quote(content_disposition),
