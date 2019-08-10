@@ -99,7 +99,7 @@ def __get_last_non_empty(string):
 
 def __get_owner_id(req_json):
     try:
-        response = requests.post('http://127.0.0.1:6000/api/get_session', data = { 'session': req_json['session'] })
+        response = requests.post('http://auth.exlent.io:4000/api/get_session', data = { 'session': req_json['session'] })
     except Exception as e:
         print(e)
         return None
@@ -121,6 +121,9 @@ def ls():
     if __level(req_json["path"]) < 0:
         return "invalid value path", 401
 
+    if __get_owner_id(req_json) is None:
+        return "invalid user", 401
+
     if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, __get_owner_id(req_json)), __join_str(ROOT_DIR, req_json["path"])):
         return "invalid value path", 401
     
@@ -129,7 +132,6 @@ def ls():
 
     with mutex:
         return json.dumps(__ls(__join_str(ROOT_DIR, path), recursive))
-    return "Hello, World!"
 
 
 def __ls(p, recursive=False):
