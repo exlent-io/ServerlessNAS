@@ -32,6 +32,7 @@ cache = {}
 dsr = TypeSerializer()
 ddr = TypeDeserializer()
 
+SESSION_LIVE = 86400 * 2
 
 def sr(obj):
     return dsr.serialize(obj)["M"]
@@ -99,20 +100,43 @@ def add_new_user_and_group():
         print(response)
     return "", 200
 
-
+#internal
 @app.route("/api/auth/get_session", methods=["POST"])
 def get_session():
     req_json = request.json
     if "session" not in req_json:
         return "", 400
 
-    ck = hash(req_json["session"])
-    if ck in cache:
-        if cache[ck]["cache_t"] < time.time() - 86400 * 2:
-            cache[ck]["cache_t"] = time.time()
-        return cache[ck], 200
-    else:
+    session = __get_session(req_json["session"])
+    if session is None:
         return "", 404
+    else:
+        return session, 200
+
+
+def __get_session(session_key):
+    ck = hash(session_key)
+    if ck in cache:
+        session = cache[ck]
+        if session["cache_t"] > time.time() - SESSION_LIVE and session["session"] == session_key:
+            session["cache_t"] = time.time()
+            return session
+    else:
+        return None
+
+@app.route("/api/auth/keep_alive", methods=["POST"])
+def keep_alive():
+    req_json = request.json
+    if "session" not in req_json:
+        return "", 400
+
+    session = __get_session(req_json["session"])
+    if session is None:
+        return "", 404
+    else:
+        return "", 200
+
+
 
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -158,6 +182,7 @@ def login():
         session = uuid.uuid4().hex
         ck = hash(session)
 
+    user["session"] = session
     cache[ck] = user
     return session, 200
 
@@ -174,13 +199,6 @@ def login():
 #     return gid
 
 
-def get_gid(headers):
-
-    # if cache
-    gid = ""
-    return gid
-
-
 @app.route("/api/auth/user", methods=["POST"])
 def add_user():
     req_json = request.json
@@ -191,8 +209,6 @@ def add_user():
         or "session" not in req_json
     ):
         return "missing key", 400
-
-    gid = get_gid(req_json)
 
     gid = req_json["group"]
     if re.search("^[A-Za-z0-9\-_\~\.]*$", gid) is None:
@@ -214,7 +230,7 @@ def add_user():
                         "Put": {
                             "Item": {
                                 "gid": {"S": gid},
-                                "uid": {"S": uid},
+                                "uid": {"S": req_json["username"]},
                                 "nickname": {"S": req_json["username"]},
                                 "p": {
                                     "S": hashlib.sha512(
