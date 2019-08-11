@@ -101,7 +101,7 @@ headers = {
 }
 def __get_owner_id(req_json):
     try:
-        response = requests.post('https://auth.exlent.io/api/auth/get_session', data = { 'session': req_json['session'] }, headers = headers)
+        response = requests.post('https://auth.exlent.io/api/auth/get_session', json = { 'session': req_json['session'] }, headers = headers)
     except Exception as e:
         print(e)
         return None
