@@ -99,7 +99,7 @@ def __get_last_non_empty(string):
 
 def __get_owner_id(req_json):
     try:
-        response = requests.post('http://auth.exlent.io:4000/api/get_session', data = { 'session': req_json['session'] })
+        response = requests.post('https://auth.exlent.io/api/get_session', data = { 'session': req_json['session'] })
     except Exception as e:
         print(e)
         return None
