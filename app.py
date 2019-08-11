@@ -145,7 +145,7 @@ def ls():
 def __ls(p, recursive=False):
     tree = (
         {}
-        if str(p.resolve()) == str(ROOT_DIR.resolve())
+        if str(p.parent.resolve()) == str(ROOT_DIR.resolve())
         else json.loads((p / "d").read_text())
     )
     tree["c"] = []
