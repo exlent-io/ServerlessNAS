@@ -441,7 +441,6 @@ def create():
     req_json["file_id"] = uuid.uuid4().hex
     req_json["timestamp"] = int(time.time())
 
-    owner_id = "default_user"
     object_key = owner_id + "/" + uuid.uuid4().hex
     req_json["object_key"] = object_key
     presigned = create_presigned_post(object_key)
@@ -662,7 +661,6 @@ def update():
     if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["full_file_id"])):
         return "invalid value full_file_id", 401
     
-    owner_id = "default_user"
     object_key = owner_id + "/" + uuid.uuid4().hex
     req_json["object_key"] = object_key
     presigned = create_presigned_post(object_key)
