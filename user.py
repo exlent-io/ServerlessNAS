@@ -110,9 +110,9 @@ def get_session():
     if ck in cache:
         if cache[ck]["cache_t"] < time.time() - 86400 * 2:
             cache[ck]["cache_t"] = time.time()
-            return cache[ck], 200
-        else:
-            return "", 404
+        return cache[ck], 200
+    else:
+        return "", 404
 
 
 @app.route("/api/auth/login", methods=["POST"])
