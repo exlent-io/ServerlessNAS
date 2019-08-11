@@ -96,13 +96,20 @@ def __is_a_in_b(a, b):
 def __get_last_non_empty(string):
     return reduce(lambda a, b: b if b else a, string.split("/"), None)
 
-
+headers = {
+    'content-type': 'application/json; charset=utf8'
+}
 def __get_owner_id(req_json):
     try:
-        response = requests.post('https://auth.exlent.io/api/auth/get_session', data = { 'session': req_json['session'] }, headers = {'content-type': 'application/json'})
+        response = requests.post('https://auth.exlent.io/api/auth/get_session', data = { 'session': req_json['session'] }, headers = headers)
     except Exception as e:
         print(e)
         return None
+    
+    if response.status_code != 200:
+        print(response.text)
+        return None
+
     if 'gid' in response:
         return response['gid']
     else:
