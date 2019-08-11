@@ -33,6 +33,7 @@ ROOT_DIR = pathlib.Path.cwd() / "tree"
 pathlib.Path(ROOT_DIR).mkdir(parents=True, exist_ok=True)
 WAL = pathlib.Path.cwd() / "wal"
 
+
 class WAL_OP:
     MKDIR = "mkdir"
     MV = "mv"
@@ -96,25 +97,31 @@ def __is_a_in_b(a, b):
 def __get_last_non_empty(string):
     return reduce(lambda a, b: b if b else a, string.split("/"), None)
 
-headers = {
-    'content-type': 'application/json; charset=utf8'
-}
+
+headers = {"content-type": "application/json; charset=utf8"}
+
+
 def __get_owner_id(req_json):
     try:
-        response = requests.post('https://auth.exlent.io/api/auth/get_session', json = { 'session': req_json['session'] }, headers = headers)
+        response = requests.post(
+            "https://auth.exlent.io/api/auth/get_session",
+            json={"session": req_json["session"]},
+            headers=headers,
+        )
     except Exception as e:
         print(e)
         return None
-    
+
     if response.status_code != 200:
         print(response.text)
         return None
     response = response.json()
-    if 'gid' in response:
-        return response['gid']
+    if "gid" in response:
+        return response["gid"]
     else:
         print(response)
-        return None    
+        return None
+
 
 @app.route("/", methods=["GET"])
 def index():
@@ -132,9 +139,11 @@ def ls():
     owner_id = __get_owner_id(req_json)
     if owner_id is None:
         return "invalid user", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])):
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])
+    ):
         return "invalid value path", 401
-    
+
     path = req_json["path"]
     recursive = request.args.get("recursive") is not None
 
@@ -198,9 +207,11 @@ def mkdir():
     owner_id = __get_owner_id(req_json)
     if owner_id is None:
         return "invalid user", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])):
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])
+    ):
         return "invalid value path", 401
-    
+
     with mutex:
         req_json["dir_id"] = uuid.uuid4().hex
         req_json["timestamp"] = int(time.time())
@@ -271,15 +282,21 @@ def mv():
     if __level(req_json["dst"]) < 0:
         return "invalid value dst", 401
     # dst should be outside of the src
-    if __is_a_in_or_eq_b(__join_str(ROOT_DIR, req_json['src']), __join_str(ROOT_DIR, req_json["dst"])):
+    if __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, req_json["src"]), __join_str(ROOT_DIR, req_json["dst"])
+    ):
         return "dst should be outside of src", 400
 
     owner_id = __get_owner_id(req_json)
     if owner_id is None:
         return "invalid user", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["src"])):
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["src"])
+    ):
         return "invalid value src", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["dst"])):
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["dst"])
+    ):
         return "invalid value dst", 401
 
     with mutex:
@@ -329,9 +346,11 @@ def rename():
     owner_id = __get_owner_id(req_json)
     if owner_id is None:
         return "invalid user", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])):
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])
+    ):
         return "invalid value path", 401
-    
+
     with mutex:
         target = __join_str(ROOT_DIR, req_json["path"])
         if target.is_dir():
@@ -394,9 +413,11 @@ def rm():
     owner_id = __get_owner_id(req_json)
     if owner_id is None:
         return "invalid user", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])):
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])
+    ):
         return "invalid value path", 401
-    
+
     with mutex:
         if not __join_str(ROOT_DIR, req_json["path"]).exists():
             return "", 404
@@ -435,9 +456,11 @@ def create():
     owner_id = __get_owner_id(req_json)
     if owner_id is None:
         return "invalid user", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["dir"])):
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["dir"])
+    ):
         return "invalid value path", 401
-    
+
     req_json["file_id"] = uuid.uuid4().hex
     req_json["timestamp"] = int(time.time())
 
@@ -627,9 +650,11 @@ def get_obj():
     owner_id = __get_owner_id(req_json)
     if owner_id is None:
         return "invalid user", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])):
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])
+    ):
         return "invalid value path", 401
-    
+
     with mutex:
         before = json.loads(__join_str(ROOT_DIR, path).read_text())
 
@@ -658,9 +683,11 @@ def update():
     owner_id = __get_owner_id(req_json)
     if owner_id is None:
         return "invalid user", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["full_file_id"])):
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["full_file_id"])
+    ):
         return "invalid value full_file_id", 401
-    
+
     object_key = owner_id + "/" + uuid.uuid4().hex
     req_json["object_key"] = object_key
     presigned = create_presigned_post(object_key)

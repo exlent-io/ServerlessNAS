@@ -34,6 +34,7 @@ ddr = TypeDeserializer()
 
 SESSION_LIVE = 86400 * 2
 
+
 def sr(obj):
     return dsr.serialize(obj)["M"]
 
@@ -100,7 +101,8 @@ def add_new_user_and_group():
         print(response)
     return "", 200
 
-#internal
+
+# internal
 @app.route("/api/auth/get_session", methods=["POST"])
 def get_session():
     req_json = request.json
@@ -118,11 +120,15 @@ def __get_session(session_key):
     ck = hash(session_key)
     if ck in cache:
         session = cache[ck]
-        if session["cache_t"] > time.time() - SESSION_LIVE and session["session"] == session_key:
+        if (
+            session["cache_t"] > time.time() - SESSION_LIVE
+            and session["session"] == session_key
+        ):
             session["cache_t"] = time.time()
             return session
     else:
         return None
+
 
 @app.route("/api/auth/keep_alive", methods=["POST"])
 def keep_alive():
@@ -135,8 +141,6 @@ def keep_alive():
         return "", 404
     else:
         return "", 200
-
-
 
 
 @app.route("/api/auth/login", methods=["POST"])
