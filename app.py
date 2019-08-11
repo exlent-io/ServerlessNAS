@@ -435,7 +435,7 @@ def create():
     owner_id = __get_owner_id(req_json)
     if owner_id is None:
         return "invalid user", 401
-    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])):
+    if not __is_a_in_or_eq_b(__join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["dir"])):
         return "invalid value path", 401
     
     req_json["file_id"] = uuid.uuid4().hex
