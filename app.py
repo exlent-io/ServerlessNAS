@@ -171,8 +171,7 @@ def __ls(p, recursive=False):
                     else json.loads((child / "d").read_text())
                 }
             )
-        else:
-            print(child.name)
+        elif child.name != "b":
             tree["c"].append({child.name: json.loads(child.read_text())})
 
     return tree
