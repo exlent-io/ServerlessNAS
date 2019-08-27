@@ -634,7 +634,7 @@ def __create_finish(record):
     return
 
 
-@app.route("api/ls_one", methods=["POST"])
+@app.route("/api/ls_one", methods=["POST"])
 def ls_one():
     req_json = request.json
 
