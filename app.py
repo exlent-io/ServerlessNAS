@@ -634,6 +634,33 @@ def __create_finish(record):
     return
 
 
+@app.route("api/ls_one", methods=["POST"])
+def ls_one():
+    req_json = request.json
+
+    # users cannot access outside of the ROOT_DIR via ../../..
+    if __level(req_json["path"]) < 0:
+        return "invalid value path", 401
+
+    owner_id = __get_owner_id(req_json)
+    if owner_id is None:
+        return "invalid user", 401
+    if not __is_a_in_or_eq_b(
+        __join_str(ROOT_DIR, owner_id), __join_str(ROOT_DIR, req_json["path"])
+    ):
+        return "invalid value path", 401
+
+    path = req_json["path"]
+
+    with mutex:
+        f = __join_str(ROOT_DIR, path)
+        if f.is_dir():
+            return "doesn't support dir", 400
+        else:
+            return f.read_text(), 200
+
+
+
 @app.route("/api/get_obj", methods=["POST"])
 def get_obj():
     req_json = request.json
