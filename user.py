@@ -264,9 +264,39 @@ def modify_user():
 def get_user():
     return
 
-
+@app.route("/api/auth/get_users_in_group", methods=["POST"])
 def get_users_in_group():
-    return
+    req_json = request.json
+
+    if ("session" not in req_json):
+        return "missing key", 400
+
+    session = __get_session(req_json["session"])
+    if session is None:
+        return "", 401
+
+    gid = req_json["group"]
+    u = req_json["username"]
+    p = req_json["password"]
+
+    try:
+        response = ddb_client.query(
+            ExpressionAttributeValues=sr({":gid": gid}),
+            KeyConditionExpression='gid = :gid',
+            ProjectionExpression='uid,n',
+            TableName=user_table_name,
+            ReturnConsumedCapacity="TOTAL",
+        )
+    except ClientError as e:
+        print(e)
+        return str(e), 400
+
+    if "Item" not in response:
+        return "err", 500
+
+    users = dr(response["Item"])
+
+    return users, 200
 
 
 def delete_user():
