@@ -42,6 +42,8 @@ def sr(obj):
 def dr(obj):
     return ddr.deserialize({"M": obj})
 
+def drs(arr):
+    return [ dr(obj) for obj in arr ]
 
 def hash(str):
     return hashlib.md5(str.encode("utf-8")).hexdigest()[0:4]
@@ -176,6 +178,7 @@ def login():
     user = dr(response["Item"])
 
     if hashlib.sha512(p.encode("utf-8")).hexdigest() != user["p"]:
+        print(hashlib.sha512(p.encode("utf-8")).hexdigest(), user['p'])
         return "Failed", 401
 
     user["cache_t"] = time.time()
@@ -275,15 +278,14 @@ def get_users_in_group():
     if session is None:
         return "", 401
 
-    gid = req_json["group"]
-    u = req_json["username"]
-    p = req_json["password"]
+    print(session)
+    gid = session["gid"]
 
     try:
         response = ddb_client.query(
             ExpressionAttributeValues=sr({":gid": gid}),
             KeyConditionExpression='gid = :gid',
-            ProjectionExpression='uid,n',
+            ProjectionExpression='uid,nickname',
             TableName=user_table_name,
             ReturnConsumedCapacity="TOTAL",
         )
@@ -291,12 +293,14 @@ def get_users_in_group():
         print(e)
         return str(e), 400
 
-    if "Item" not in response:
+    if "Items" not in response:
+        print(response)
         return "err", 500
 
-    users = dr(response["Item"])
-
-    return users, 200
+    print(response["Items"])
+    users = drs(response["Items"])
+    print(users)
+    return {'users':users}, 200
 
 
 def delete_user():
