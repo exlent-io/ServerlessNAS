@@ -227,14 +227,6 @@ def add_user():
                 TransactItems=[
                     {
                         "Put": {
-                            "Item": {"gid": {"S": gid}},
-                            "TableName": group_table_name,
-                            "ConditionExpression": "attribute_not_exists(gid)",
-                            "ReturnValuesOnConditionCheckFailure": "NONE",
-                        }
-                    },
-                    {
-                        "Put": {
                             "Item": {
                                 "gid": {"S": gid},
                                 "uid": {"S": req_json["username"]},
