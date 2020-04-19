@@ -118,7 +118,7 @@ def get_session():
         return session, 200
 
 
-def __get_session(session_key):
+def __get_session(session_key, with_pw=False):
     ck = hash(session_key)
     if ck in cache:
         session = cache[ck]
@@ -127,6 +127,8 @@ def __get_session(session_key):
             and session["session"] == session_key
         ):
             session["cache_t"] = time.time()
+            if not with_pw:
+                del session["p"]
             return session
     else:
         return None
