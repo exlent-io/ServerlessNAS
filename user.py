@@ -257,7 +257,21 @@ def modify_user():
 
 
 def get_user():
-    return
+    req_json = request.json
+    if (
+        "username" not in req_json
+        or "session" not in req_json
+    ):
+        return "missing key", 400
+
+    session = __get_session(req_json["session"])
+    if session is None:
+        return "", 404
+
+    if session['uid'] != req_json["username"]:
+        return "", 401
+
+    return session, 200
 
 @app.route("/api/auth/get_users_in_group", methods=["POST"])
 def get_users_in_group():
