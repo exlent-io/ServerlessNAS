@@ -255,7 +255,7 @@ def add_user():
 def modify_user():
     return
 
-
+@app.route("/api/auth/get_user", methods=["POST"])
 def get_user():
     req_json = request.json
     if (
