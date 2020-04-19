@@ -126,10 +126,12 @@ def __get_session(session_key, with_pw=False):
             session["cache_t"] > time.time() - SESSION_LIVE
             and session["session"] == session_key
         ):
+            ret = session.copy()
             session["cache_t"] = time.time()
+
             if not with_pw:
-                del session["p"]
-            return session
+                del ret["p"]
+            return ret
     else:
         return None
 
