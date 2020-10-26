@@ -357,7 +357,7 @@ def __gen_firebase_jwt():
     user_uid = 'd9BKdBNPHGY1bLpQOR042Rt62Ds2'
 
     now = int(time.time())
-    expireSeconds = 2*60*60 # 2hr
+    expireSeconds = 60 * 60
     payload = {
         'iss': service_account['client_email'],
         'sub': service_account['client_email'],
