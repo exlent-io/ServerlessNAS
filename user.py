@@ -323,7 +323,7 @@ def delete_group():
     return
 
 
-@app.route('/api/auth/get_token', methods=['POST'])
+@app.route('/api/auth/firebase', methods=['POST'])
 def session_to_firebase_jwt():
     req = request.json
     if req is None:
