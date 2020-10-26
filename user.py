@@ -14,6 +14,7 @@ import os
 from enum import Enum, auto
 import threading
 import hashlib
+import jwt
 
 import uuid
 import json
@@ -320,6 +321,54 @@ def delete_user():
 
 def delete_group():
     return
+
+
+@app.route('/api/auth/get_token', methods=['POST'])
+def session_to_firebase_jwt():
+    req = request.json
+    if req is None:
+        return '', 400
+    if 'session' not in req:
+        return '', 400
+
+    session = __get_session(req["session"])
+    if session is None:
+        return "", 404
+
+    # start to gen jwt
+    token = __gen_firebase_jwt()
+    if token is None:
+        return '', 500
+
+    return {'token': token}
+
+def __gen_firebase_jwt():
+    # Opening JSON file
+    with open('service-account.json', 'r') as f:
+        service_account = json.load(f)
+
+    if service_account is None:
+        print('bad service_account.json')
+        return 
+    if 'private_key' not in service_account or 'client_email' not in service_account:
+        print('bad private_key')
+        return 
+
+    user_uid = 'd9BKdBNPHGY1bLpQOR042Rt62Ds2'
+
+    now = int(time.time())
+    expireSeconds = 2*60*60 # 2hr
+    payload = {
+        'iss': service_account['client_email'],
+        'sub': service_account['client_email'],
+        'aud': 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',
+        'iat': now, # current timestamp
+        'exp': now + expireSeconds,
+        'uid': user_uid,
+    }
+    firebase_jwt = jwt.encode(payload, service_account['private_key'], algorithm='RS256')
+    
+    return firebase_jwt.decode()
 
 
 if __name__ == "__main__":
