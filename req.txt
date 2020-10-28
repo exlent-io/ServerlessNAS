@@ -34,3 +34,4 @@ urllib3==1.21.1
 Werkzeug==0.15.5
 wrapt==1.11.2
 PyJWT==1.7.1
+cryptography==3.2.1
