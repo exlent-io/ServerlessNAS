@@ -212,6 +212,9 @@ def change_password():
     ):
         return "missing key", 400
 
+    old_password = req_json['old_password']
+    new_password = req_json['new_password']
+
     session = _get_session(req_json["session"], with_pw=True)
     if session is None:
         return "", 404
