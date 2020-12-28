@@ -204,6 +204,8 @@ def login():
 
 @app.route("/api/auth/pw", methods=["POST"])
 def change_password():
+    req_json = request.json
+
     if (
         "old_password" not in req_json
         or "new_password" not in req_json
