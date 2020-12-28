@@ -21,7 +21,7 @@ import json
 from functools import reduce
 
 import urllib.parse
-from lib.config import ddb_client, user_table_name, group_table_name, base_url
+from lib.config import ddb_client, ddb_resource, user_table_name, group_table_name, base_url
 
 app = Flask(__name__)
 cors = CORS(app)
