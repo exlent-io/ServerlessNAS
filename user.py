@@ -7,6 +7,7 @@ import boto3
 from boto3.dynamodb.types import TypeSerializer, TypeDeserializer
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr, Or, AttributeNotExists
+botocore.errorfactory.ConditionalCheckFailedException
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
 import time
@@ -220,15 +221,17 @@ def change_password():
     if session is None:
         return "", 404
 
-    response = exlentuser_table.update_item(
-        Key={"gid": session['gid'], "uid": session['uid']},
-        UpdateExpression="set #p=:p",
-        ConditionExpression=Attr('p').eq(hash_pw(old_password)),
-        ExpressionAttributeNames={'#p': 'p'},
-        ExpressionAttributeValues={':p': hash_pw(new_password)},
-        ReturnValues="UPDATED_NEW"
-    )
-    
+    try:
+        response = exlentuser_table.update_item(
+            Key={"gid": session['gid'], "uid": session['uid']},
+            UpdateExpression="set #p=:p",
+            ConditionExpression=Attr('p').eq(hash_pw(old_password)),
+            ExpressionAttributeNames={'#p': 'p'},
+            ExpressionAttributeValues={':p': hash_pw(new_password)},
+            ReturnValues="UPDATED_NEW"
+        )
+    except exlentuser_table.meta.client.exceptions.ConditionalCheckFailedException as e: 
+        return "", 401
     print(response)
     return "", 200
 
