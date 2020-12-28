@@ -216,22 +216,6 @@ def change_password():
     if session is None:
         return "", 404
 
-    try:
-        response = ddb_client.get_item(
-            TableName=user_table_name,
-            Key=sr({"gid": gid, "uid": u}),
-            ConsistentRead=True,
-            ReturnConsumedCapacity="TOTAL",
-        )
-    except ClientError as e:
-        print(e)
-        return str(e), 400
-
-    if "Item" not in response:
-        return "No such user", 401
-
-
-
     user = dr(response["Item"])
 
     if hash_pw(old_password) != user["p"]:
