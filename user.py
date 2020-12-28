@@ -219,10 +219,6 @@ def change_password():
     if session is None:
         return "", 404
 
-    if hash_pw(old_password) != user["p"]:
-        print(hash_pw(old_password), user['p'])
-        return "Failed", 401
-
     response = exlentuser_table.update_item(
         Key={"gid": session['gid'], "uid": session['uid']},
         UpdateExpression="set #p=:p",
