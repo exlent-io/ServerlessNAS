@@ -49,6 +49,7 @@ def drs(arr):
 def hash(str):
     return hashlib.md5(str.encode("utf-8")).hexdigest()[0:4]
 
+exlentuser_table = ddb_resource.Table('exlentuser')
 
 @app.route("/api/auth/group", methods=["POST"])
 def add_new_user_and_group():
@@ -84,9 +85,7 @@ def add_new_user_and_group():
                                     "gid": gid,
                                     "uid": req_json["username"],
                                     "nickname": req_json["username"],
-                                    "p": hashlib.sha512(
-                                        req_json["password"].encode("utf-8")
-                                    ).hexdigest(),
+                                    "S": hash_pw(req_json["password"])
                                 }
                             ),
                             "TableName": user_table_name,
@@ -112,14 +111,14 @@ def get_session():
     if "session" not in req_json:
         return "", 400
 
-    session = __get_session(req_json["session"])
+    session = _get_session(req_json["session"])
     if session is None:
         return "", 404
     else:
         return session, 200
 
 
-def __get_session(session_key, with_pw=False):
+def _get_session(session_key, with_pw=False):
     ck = hash(session_key)
     if ck in cache:
         session = cache[ck]
@@ -143,11 +142,15 @@ def keep_alive():
     if "session" not in req_json:
         return "", 400
 
-    session = __get_session(req_json["session"])
+    session = _get_session(req_json["session"])
     if session is None:
         return "", 404
     else:
         return "", 200
+
+
+def hash_pw(pw):
+    return hashlib.sha512(pw.encode('utf-8')).hexdigest()
 
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -182,8 +185,8 @@ def login():
 
     user = dr(response["Item"])
 
-    if hashlib.sha512(p.encode("utf-8")).hexdigest() != user["p"]:
-        print(hashlib.sha512(p.encode("utf-8")).hexdigest(), user['p'])
+    if hash_pw(p) != user["p"]:
+        print(hash_pw(p), user['p'])
         return "Failed", 401
 
     user["cache_t"] = time.time()
@@ -198,6 +201,52 @@ def login():
     cache[ck] = user
     return session, 200
 
+
+@app.route("/api/auth/pw", methods=["POST"])
+def change_password():
+    if (
+        "old_password" not in req_json
+        or "new_password" not in req_json
+    ):
+        return "missing key", 400
+
+    session = _get_session(req_json["session"], with_pw=True)
+    if session is None:
+        return "", 404
+
+    try:
+        response = ddb_client.get_item(
+            TableName=user_table_name,
+            Key=sr({"gid": gid, "uid": u}),
+            ConsistentRead=True,
+            ReturnConsumedCapacity="TOTAL",
+        )
+    except ClientError as e:
+        print(e)
+        return str(e), 400
+
+    if "Item" not in response:
+        return "No such user", 401
+
+
+
+    user = dr(response["Item"])
+
+    if hash_pw(old_password) != user["p"]:
+        print(hash_pw(old_password), user['p'])
+        return "Failed", 401
+
+    response = exlentuser_table.update_item(
+        Key={"gid": session['gid'], "uid": session['uid']},
+        UpdateExpression="set #p=:p",
+        ConditionExpression=Attr('p').eq(hash_pw(old_password)),
+        ExpressionAttributeNames={'#p': 'p'},
+        ExpressionAttributeValues={':p': hash_pw(new_password)},
+        ReturnValues="UPDATED_NEW"
+    )
+    
+    print(response)
+    return "", 200
 
 # base_url_arr = base_url.split['.']
 # def get_gid(headers):
@@ -237,9 +286,7 @@ def add_user():
                                 "uid": {"S": req_json["username"]},
                                 "nickname": {"S": req_json["username"]},
                                 "p": {
-                                    "S": hashlib.sha512(
-                                        req_json["password"].encode("utf-8")
-                                    ).hexdigest()
+                                    "S": hash_pw(req_json["password"])
                                 },
                             },
                             "TableName": user_table_name,
@@ -269,7 +316,7 @@ def get_user():
     ):
         return "missing key", 400
 
-    session = __get_session(req_json["session"])
+    session = _get_session(req_json["session"])
     if session is None:
         return "", 404
 
@@ -285,7 +332,7 @@ def get_users_in_group():
     if ("session" not in req_json):
         return "missing key", 400
 
-    session = __get_session(req_json["session"])
+    session = _get_session(req_json["session"])
     if session is None:
         return "", 401
 
@@ -331,18 +378,18 @@ def session_to_firebase_jwt():
     if 'session' not in req:
         return '', 400
 
-    session = __get_session(req["session"])
+    session = _get_session(req["session"])
     if session is None:
         return "", 404
 
     # start to gen jwt
-    token = __gen_firebase_jwt()
+    token = _gen_firebase_jwt()
     if token is None:
         return '', 500
 
     return {'token': token}
 
-def __gen_firebase_jwt():
+def _gen_firebase_jwt():
     # Opening JSON file
     with open('service-account.json', 'r') as f:
         service_account = json.load(f)

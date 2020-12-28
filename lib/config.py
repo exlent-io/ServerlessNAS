@@ -15,3 +15,4 @@ base_url = os.getenv("base_url")
 
 s3_client = session.client("s3")
 ddb_client = session.client("dynamodb")
+ddb_resource = session.resource('dynamodb')
