@@ -216,8 +216,6 @@ def change_password():
     if session is None:
         return "", 404
 
-    user = dr(response["Item"])
-
     if hash_pw(old_password) != user["p"]:
         print(hash_pw(old_password), user['p'])
         return "Failed", 401
