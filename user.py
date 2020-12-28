@@ -6,6 +6,7 @@ import logging
 import boto3
 from boto3.dynamodb.types import TypeSerializer, TypeDeserializer
 from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key, Attr, Or, AttributeNotExists
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
 import time
