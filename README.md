@@ -1,5 +1,20 @@
 # ServiceStorage
 
+The next version would be using aws lambda mounting efs(dir_structure & meta) + dynamodb (prefix locking) + s3(actual storage), which guarantees stronger ACID  
+The lock mechanism:  
+- read
+    1. Insert one record(path=path, rw=) to dynamodb as a lock.  
+    2. Perform a BEGINS_WITH query to see if there are any previous WRITE_LOCKs (not yet timeout), if TRUE, polling until we can perform our action.  
+    3. Remove the record after done.  
+- write
+    1. Insert one record(path=path, rw=w) to dynamodb as a lock.  
+    2. Perform a BEGINS_WITH query to see if there are any previous READ_LOCKs or WRITE_LOCKs (not yet timeout), if TRUE, polling until we can perform our action.  
+    3. Remove the record after done.  
+As for moving, we lock on the common prefix of the src & dst dir.  
+
+The ideally structure would be (project_root, lock usage) / users(or group) / ...
+For resolving the sharing model, we'll always iterate through the whole tree under project_root.  
+
 A NAS managing dir structure with filesystem and store objects with S3
 
 ## Features
