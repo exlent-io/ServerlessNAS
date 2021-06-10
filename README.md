@@ -14,6 +14,8 @@ As for moving, we lock on the common prefix of the src & dst dir.
 
 The ideally structure would be (project_root, lock usage) / users(or group) / ...
 For resolving the sharing model, we'll always iterate through the whole tree under project_root.  
+
+
 ---------------------------------------------------------------  
 A NAS managing dir structure with filesystem and store objects with S3
 
